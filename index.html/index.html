@@ -1,0 +1,362 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Gift</title>
+
+<style>
+:root{
+  --liftY: 20vh;
+  --ropeWidth: 3px;
+  --swingDeg: 5deg;
+}
+
+html, body{
+  margin:0;
+  height:100%;
+  background:#fff;
+  overflow:hidden;
+  font-family: system-ui, -apple-system, "Apple SD Gothic Neo", "Noto Sans KR", sans-serif;
+}
+
+/* 기본 빨간 원 커서 */
+body{
+  cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='32' height='32' viewBox='0 0 32 32'%3E%3Cdefs%3E%3Cfilter id='grain'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix type='matrix' values='1 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 .25 0'/%3E%3C/filter%3E%3Cfilter id='rough'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.12' numOctaves='2'/%3E%3CfeDisplacementMap in='SourceGraphic' scale='2'/%3E%3C/filter%3E%3C/defs%3E%3Ccircle cx='16' cy='16' r='6.2' fill='%23d40000' filter='url(%23rough)'/%3E%3Ccircle cx='16' cy='16' r='6.2' fill='%23d40000' filter='url(%23grain)' opacity='0.9'/%3E%3C/svg%3E") 16 16, auto;
+}
+
+/* ✅ 방망이 커서 (태그 오류 고친 정상 버전) */
+body.bat-cursor{
+  cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='48' height='48' viewBox='0 0 48 48'%3E%3Cdefs%3E%3Cfilter id='rough'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.3' numOctaves='2'/%3E%3CfeDisplacementMap in='SourceGraphic' scale='2'/%3E%3C/filter%3E%3Cfilter id='grain'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix type='matrix' values='1 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 .25 0'/%3E%3C/filter%3E%3C/defs%3E%3Crect x='18' y='4' width='12' height='28' rx='6' fill='%23d40000' filter='url(%23rough)'/%3E%3Crect x='18' y='4' width='12' height='28' rx='6' fill='%23d40000' filter='url(%23grain)' opacity='0.85'/%3E%3Crect x='20' y='28' width='8' height='14' rx='4' fill='%23d40000' opacity='0.9'/%3E%3C/svg%3E") 24 6, auto;
+}
+
+.stage{
+  position:relative;
+  width:100%;
+  height:100%;
+}
+
+.rope{
+  position:absolute;
+  top:0;
+  left:50%;
+  transform:translateX(-50%);
+  width:var(--ropeWidth);
+  height:0;
+  opacity:0;
+  pointer-events:none;
+  z-index:999;
+  background-color:#d40000;
+  border-radius:999px;
+  transition: opacity 180ms linear;
+}
+
+.pinata{
+  position:absolute;
+  left:50%;
+  top:50%;
+  transform:translate(-50%, -50%);
+  transform-origin:50% 0%;
+  will-change:transform;
+  z-index:10;
+}
+
+.hitLayer{
+  will-change: transform;
+}
+
+#horse{
+  width:min(520px, 80vw);
+  height:auto;
+  display:block;
+  user-select:none;
+  -webkit-user-drag:none;
+  cursor:inherit;
+  position:relative;
+  z-index:10;
+}
+
+/* 상태 */
+.stage.lift .rope{ opacity:1; }
+.stage.lift .pinata{ animation: liftUp 900ms ease-out forwards; }
+
+.stage.hang .pinata{
+  transform:translate(-50%, -50%) translateY(calc(-1 * var(--liftY)));
+  animation: swing 1.6s ease-in-out infinite;
+}
+.stage.hang .rope{ opacity:1; }
+
+/* 떨어진 이후(rope 숨김, swing 끔) */
+.stage.drop .rope{ opacity:0; }
+.stage.drop .pinata{ animation:none !important; }
+
+/* 최종 전환(선택: 커서/애니 끄기용) */
+.stage.final .rope{ opacity:0; }
+.stage.final .pinata{ animation:none !important; }
+
+@keyframes liftUp{
+  from{ transform:translate(-50%, -50%) translateY(0); }
+  to{ transform:translate(-50%, -50%) translateY(calc(-1 * var(--liftY))); }
+}
+
+@keyframes swing{
+  0%{
+    transform:translate(-50%, -50%) translateY(calc(-1 * var(--liftY)))
+      rotate(calc(-1 * var(--swingDeg)));
+  }
+  50%{
+    transform:translate(-50%, -50%) translateY(calc(-1 * var(--liftY)))
+      rotate(var(--swingDeg));
+  }
+  100%{
+    transform:translate(-50%, -50%) translateY(calc(-1 * var(--liftY)))
+      rotate(calc(-1 * var(--swingDeg)));
+  }
+}
+</style>
+</head>
+
+<body>
+<div class="stage" id="stage">
+  <div class="rope" id="rope"></div>
+
+  <div class="pinata" id="pinata">
+    <div class="hitLayer" id="hitLayer">
+      <img id="horse" src="horse1.png" alt="말">
+    </div>
+  </div>
+</div>
+
+<script>
+/* 파일명 */
+const HORSE_1 = "horse1.png";
+const HORSE_2 = "horse2.png";
+const HORSE_3 = "horse3.png";
+const HORSE_4 = "horse4.png";
+const GIFT_1  = "gift1.png";
+const GIFT_2  = "gift2.png";
+
+/* DOM */
+const stage    = document.getElementById("stage");
+const pinata   = document.getElementById("pinata");
+const hitLayer = document.getElementById("hitLayer");
+const img      = document.getElementById("horse");
+const rope     = document.getElementById("rope");
+
+/* preload */
+[HORSE_1, HORSE_2, HORSE_3, HORSE_4, GIFT_1, GIFT_2].forEach(src => { const i = new Image(); i.src = src; });
+
+/* 상태 */
+let state = "horse1"; // horse1 | horse2 | lifting | hanging | dropping | dropped | final
+let rafId = null;
+let hitAnim = null;
+let totalHits = 0;
+let dropAnim = null;
+
+/* rope 업데이트 (49%) */
+function updateRope(){
+  if (state !== "lifting" && state !== "hanging") return;
+
+  const r = img.getBoundingClientRect();
+  const connectX = r.left + r.width * 0.50;
+  const endY     = r.top + r.height * 0.49;
+
+  rope.style.left = `${connectX}px`;
+  rope.style.height = `${Math.max(0, endY)}px`;
+}
+
+function startTracking(){
+  if (rafId) return;
+  const tick = () => {
+    updateRope();
+    rafId = requestAnimationFrame(tick);
+  };
+  rafId = requestAnimationFrame(tick);
+}
+
+function stopTracking(){
+  if (!rafId) return;
+  cancelAnimationFrame(rafId);
+  rafId = null;
+}
+
+img.addEventListener("load", updateRope);
+window.addEventListener("resize", updateRope);
+
+/* hover: 말1 -> 말2 */
+img.addEventListener("mouseenter", () => {
+  if (state !== "horse1") return;
+  img.src = HORSE_2;
+  state = "horse2";
+});
+
+img.addEventListener("mouseleave", () => {
+  if (state !== "horse2") return;
+  img.src = HORSE_1;
+  state = "horse1";
+});
+
+/* 말2 클릭: 올리기 */
+img.addEventListener("click", () => {
+  if (state !== "horse2") return;
+
+  state = "lifting";
+  img.src = HORSE_1;
+  totalHits = 0;
+
+  stage.classList.remove("hang", "drop", "final");
+  stage.classList.add("lift");
+
+  startTracking();
+});
+
+/* lift 끝 -> hang + 방망이 커서 */
+pinata.addEventListener("animationend", (e) => {
+  if (e.animationName !== "liftUp") return;
+
+  stage.classList.remove("lift");
+  stage.classList.add("hang");
+  state = "hanging";
+
+  document.body.classList.add("bat-cursor");
+});
+
+/* 타격 모션 */
+function doHitMotion(event){
+  const r = img.getBoundingClientRect();
+  const centerX = r.left + r.width / 2;
+  const dir = (event.clientX > centerX) ? -1 : 1;
+
+  const dx  = dir * (90 + Math.random() * 160);
+  const dy  = (-10 + Math.random() * 60);
+  const rot = dir * (10 + Math.random() * 20);
+
+  // 흔들림 감쇠(더 오래)
+  clearTimeout(window.__s1); clearTimeout(window.__s2); clearTimeout(window.__s3); clearTimeout(window.__s4);
+  document.documentElement.style.setProperty("--swingDeg", `${14 + Math.random() * 10}deg`);
+  window.__s1 = setTimeout(() => document.documentElement.style.setProperty("--swingDeg", "12deg"), 500);
+  window.__s2 = setTimeout(() => document.documentElement.style.setProperty("--swingDeg", "9deg"), 1100);
+  window.__s3 = setTimeout(() => document.documentElement.style.setProperty("--swingDeg", "7deg"), 1800);
+  window.__s4 = setTimeout(() => document.documentElement.style.setProperty("--swingDeg", "5deg"), 2600);
+
+  if (hitAnim) hitAnim.cancel();
+  hitAnim = hitLayer.animate(
+    [
+      { transform: "translate(0px, 0px) rotate(0deg) scale(1)" },
+      { transform: `translate(${dx}px, ${dy}px) rotate(${rot}deg) scale(0.985)`, offset: 0.18 },
+      { transform: "translate(0px, 0px) rotate(0deg) scale(1)" }
+    ],
+    {
+      duration: 1150,
+      easing: "cubic-bezier(.14,.86,.18,1)",
+      fill: "forwards"
+    }
+  );
+}
+
+/* 단계 전환 */
+function applyHitStages(){
+  if (totalHits === 5)  img.src = HORSE_3;
+  if (totalHits === 10) img.src = HORSE_4;
+
+  // 13대째: gift1 + 떨어짐
+  if (totalHits === 13) finalizeDrop();
+
+  // 15대째: gift2로 전환 (떨어진 후에만 의미 있게)
+  if (totalHits === 14) showGift2();
+}
+
+function finalizeDrop(){
+  if (state !== "hanging") return;
+  state = "dropping";
+
+  img.src = GIFT_1;
+
+  // rope 숨기고 swing 끄기
+  stage.classList.remove("hang");
+  stage.classList.add("drop");
+
+  stopTracking();
+
+  if (hitAnim) { try { hitAnim.cancel(); } catch(_){} }
+  hitLayer.style.transform = "translate(0px,0px) rotate(0deg) scale(1)";
+
+  // 떨어지는 애니메이션: 매달린 위치 -> 중앙
+  const fromT = `translate(-50%, -50%) translateY(calc(-1 * var(--liftY))) rotate(0deg)`;
+  const midT  = `translate(-50%, -50%) translateY(6vh) rotate(0deg)`;
+  const toT   = `translate(-50%, -50%) translateY(0vh) rotate(0deg)`;
+
+  if (dropAnim) { try { dropAnim.cancel(); } catch(_){} }
+  dropAnim = pinata.animate(
+    [
+      { transform: fromT },
+      { transform: midT, offset: 0.82 },
+      { transform: toT }
+    ],
+    {
+      duration: 900,
+      easing: "cubic-bezier(.2,.9,.2,1)",
+      fill: "forwards"
+    }
+  );
+
+  dropAnim.onfinish = () => {
+    state = "dropped";
+  };
+}
+
+function showGift2(){
+  // 15대 조건: 떨어진 후(or 떨어지는 중이면 완료 후)로 전환
+  if (state === "final") return;
+
+  const go = () => {
+    state = "final";
+    stage.classList.remove("drop", "hang", "lift");
+    stage.classList.add("final");
+
+    img.src = GIFT_2;
+
+    // 더 이상 흔들림/타격 없음
+    stopTracking();
+    if (hitAnim) { try { hitAnim.cancel(); } catch(_){} }
+    hitLayer.style.transform = "translate(0px,0px) rotate(0deg) scale(1)";
+  };
+
+  // 떨어지는 중이면 끝난 다음 전환
+  if (state === "dropping" && dropAnim) {
+    dropAnim.onfinish = () => {
+      state = "dropped";
+      go();
+    };
+    return;
+  }
+
+  // 이미 떨어진 상태면 바로 전환
+  if (state === "dropped") {
+    go();
+  }
+}
+
+/* 전역 클릭 = 때리기 */
+document.addEventListener("click", (e) => {
+  // hanging일 때만 타격 모션, 카운트 증가
+  if (state === "hanging") {
+    totalHits += 1;
+    doHitMotion(e);
+    applyHitStages();
+    return;
+  }
+
+  // 떨어진 뒤에도 2번 더 “때리기 카운트”를 받아야 15가 됨
+  if (state === "dropped") {
+    totalHits += 1;
+    applyHitStages(); // 여기서 15면 gift2로 넘어감
+    return;
+  }
+});
+
+/* 초기 */
+updateRope();
+</script>
+</body>
+</html>
